@@ -30,4 +30,7 @@
 	"SSHFS processes running": "Laufende SSHFS-Prozesse",
 	"A process is still running.\n\nDo you want to quit it?": "Ein Prozess läuft noch. Soll dieser beendet werden?",
 	"SSHFS process running": "Laufender SSHFS-Prozess",
+	"Private Key File": "Private Key-Datei",
+	"Password (saved)": "Passwort (gespeichert)",
+	"Password (ask on connect)": "Passwort (bei Verbindung fragen)",
 }

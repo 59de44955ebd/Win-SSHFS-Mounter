@@ -422,9 +422,9 @@ class App(MainWin):
                     user32.SendMessageW(hwnd_combo_letter, CB_ADDSTRING, 0, create_unicode_buffer(chr(i)))
 
                 hwnd_combo_auth = user32.GetDlgItem(hwnd, IDC_COMBO_AUTH)
-                user32.SendMessageW(hwnd_combo_auth, CB_ADDSTRING, 0, create_unicode_buffer('Private Key File'))
-                user32.SendMessageW(hwnd_combo_auth, CB_ADDSTRING, 0, create_unicode_buffer('Password (saved)'))
-                user32.SendMessageW(hwnd_combo_auth, CB_ADDSTRING, 0, create_unicode_buffer('Password (ask on connect)'))
+                user32.SendMessageW(hwnd_combo_auth, CB_ADDSTRING, 0, create_unicode_buffer(_('Private Key File')))
+                user32.SendMessageW(hwnd_combo_auth, CB_ADDSTRING, 0, create_unicode_buffer(_('Password (saved)')))
+                user32.SendMessageW(hwnd_combo_auth, CB_ADDSTRING, 0, create_unicode_buffer(_('Password (ask on connect)')))
 
                 ctx.con_id = lparam
                 if ctx.con_id == 0:  # new connection
