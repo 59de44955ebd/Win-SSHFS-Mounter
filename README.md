@@ -1,6 +1,6 @@
 # Win-SSHFS-Mounter
 
-Win-SSHFS-Mounter is a small System Tray application for Windows that allows to mount and unmount [SSHFS](https://github.com/libfuse/sshfs) Drives. It depends on [WinFsp](https://winfsp.dev/). Other than that it has no more dependancies, it does **not** use [sshfs-win](https://github.com/winfsp/sshfs-win), but instead a bundled unaltered version of [Cygwin](https://www.cygwin.com/)'s SSHFS.
+Win-SSHFS-Mounter is a small System Tray application for Windows that allows to mount and unmount [SSHFS](https://github.com/libfuse/sshfs) Drives. It depends on [WinFsp](https://winfsp.dev/). Other than that it has no more dependancies, it does **not** use [sshfs-win](https://github.com/winfsp/sshfs-win), but instead bundled unaltered versions of [Cygwin](https://www.cygwin.com/)'s ssh and sshfs.
 
 ## Setup and usage
 
@@ -16,5 +16,5 @@ Win-SSHFS-Mounter is a small System Tray application for Windows that allows to 
 *Win-SSHFS-Mounter in System Tray (Windows 11)*  
 ![Win-SSHFS-Mounter in System Tray](screenshots/systray.png)
 
-*Win-SSHFS-Mounter GUI*  
+*Win-SSHFS-Mounter GUI (Windows 11)*  
 ![Win-SSHFS-Mounter GUI](screenshots/gui.png)
