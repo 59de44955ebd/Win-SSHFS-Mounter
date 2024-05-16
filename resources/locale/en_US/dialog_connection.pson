@@ -1,0 +1,309 @@
+{
+    "class": "#32770",
+    "caption": "Edit Connection",
+    "font": ["MS Sans Serif", -11],
+    "rect": [0, 0, 228, 311],
+    "style": 2496135364,
+    "exstyle": 65793,
+    "controls": [
+        {
+            "id": -1,
+            "class": "STATIC",
+            "caption": "Connection Name (Volume Name):",
+            "rect": [
+                7,
+                10,
+                214,
+                10
+            ],
+            "style": 1342308363,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_EDIT_NAME,
+            "class": "EDIT",
+            "caption": "",
+            "rect": [
+                7,
+                20,
+                214,
+                12
+            ],
+            "style": 1350631552,
+            "exstyle": 516
+        },
+        {
+            "id": -1,
+            "class": "STATIC",
+            "caption": "Host/IP:",
+            "rect": [
+                7,
+                40,
+                214,
+                10
+            ],
+            "style": 1342308363,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_EDIT_HOST,
+            "class": "EDIT",
+            "caption": "",
+            "rect": [
+                7,
+                50,
+                214,
+                12
+            ],
+            "style": 1350631552,
+            "exstyle": 516
+        },
+        {
+            "id": -1,
+            "class": "STATIC",
+            "caption": "Port:",
+            "rect": [
+                7,
+                70,
+                214,
+                10
+            ],
+            "style": 1342308363,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_EDIT_PORT,
+            "class": "EDIT",
+            "caption": "",
+            "rect": [
+                7,
+                80,
+                48,
+                12
+            ],
+            "style": 1350639744,
+            "exstyle": 516
+        },
+        {
+            "id": -1,
+            "class": "STATIC",
+            "caption": "User:",
+            "rect": [
+                7,
+                100,
+                214,
+                10
+            ],
+            "style": 1342308363,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_EDIT_USER,
+            "class": "EDIT",
+            "caption": "",
+            "rect": [
+                7,
+                110,
+                214,
+                12
+            ],
+            "style": 1350631552,
+            "exstyle": 516
+        },
+        {
+            "id": -1,
+            "class": "STATIC",
+            "caption": "Remote Path:",
+            "rect": [
+                7,
+                130,
+                214,
+                10
+            ],
+            "style": 1342308363,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_EDIT_PATH,
+            "class": "EDIT",
+            "caption": "",
+            "rect": [
+                7,
+                140,
+                214,
+                12
+            ],
+            "style": 1350631552,
+            "exstyle": 516
+        },
+        {
+            "id": -1,
+            "class": "STATIC",
+            "caption": "Local Drive Letter:",
+            "rect": [
+                7,
+                160,
+                214,
+                10
+            ],
+            "style": 1342308363,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_COMBO_LETTER,
+            "class": "COMBOBOX",
+            "caption": "",
+            "rect": [
+                7,
+                170,
+                214,
+                12
+            ],
+            "style": 270598147,
+            "exstyle": 4
+        },
+        {
+            "id": -1,
+            "class": "STATIC",
+            "caption": "Authentication Method",
+            "rect": [
+                7,
+                190,
+                214,
+                10
+            ],
+            "style": 1342308363,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_COMBO_AUTH,
+            "class": "COMBOBOX",
+            "caption": "",
+            "rect": [
+                7,
+                200,
+                214,
+                12
+            ],
+            "style": 270598147,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_STATIC_PASSWORD,
+            "class": "STATIC",
+            "caption": "Password",
+            "rect": [
+                7,
+                220,
+                214,
+                10
+            ],
+            "style": 1073872907,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_EDIT_PASSWORD,
+            "class": "EDIT",
+            "caption": "",
+            "rect": [
+                7,
+                230,
+                214,
+                12
+            ],
+            "style": 1082196128,
+            "exstyle": 516
+        },
+        {
+            "id": IDC_STATIC_KEY,
+            "class": "STATIC",
+            "caption": "Private Key File",
+            "rect": [
+                7,
+                220,
+                214,
+                10
+            ],
+            "style": 1342308363,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_EDIT_KEY,
+            "class": "EDIT",
+            "caption": "",
+            "rect": [
+                7,
+                230,
+                214 - 25,
+                12
+            ],
+            "style": 1350631552,
+            "exstyle": 516
+        },
+        {
+            "id": IDC_SELECT_KEY,
+            "class": "BUTTON",
+            "caption": "...",
+            "rect": [
+                221 - 20,
+                230,
+                20,
+                12
+            ],
+            "style": 1342242816,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_CHECK_AUTOCONNECT,
+            "class": "BUTTON",
+            "caption": "Connect on program startup?",
+            "rect": [
+                7,
+                250,
+                214,
+                10
+            ],
+            "style": 1342242819,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_CHECK_RECONNECT,
+            "class": "BUTTON",
+            "caption": "Reconnect on connection loss?",
+            "rect": [
+                7,
+                264,
+                214,
+                12
+            ],
+            "style": 1342242819,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_OK,
+            "class": "BUTTON",
+            "caption": "Save",
+            "rect": [
+                117,
+                290,
+                50,
+                14
+            ],
+            "style": 1342177281,
+            "exstyle": 4
+        },
+        {
+            "id": IDC_CANCEL,
+            "class": "BUTTON",
+            "caption": "Cancel",
+            "rect": [
+                171,
+                290,
+                50,
+                14
+            ],
+            "style": 1342177280,
+            "exstyle": 4
+        },
+    ]
+}
