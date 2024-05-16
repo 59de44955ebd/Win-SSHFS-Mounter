@@ -591,11 +591,8 @@ class App(MainWin):
         startupinfo.wShowWindow = subprocess.SW_HIDE
 
         proc = subprocess.Popen(
-            #f'cmd.exe /k title {_("Debug Console")}',
-
             os.path.join(BIN_DIR, 'bash.exe'),
             env = {'PATH': BIN_DIR},
-
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdin=subprocess.PIPE,
@@ -607,7 +604,7 @@ class App(MainWin):
             if kernel32.AttachConsole(proc.pid):
                 break
 
-        kernel32.SetConsoleTitleW( _("Debug Console"))
+        kernel32.SetConsoleTitleW(_("Debug Console"))
         self.hwnd_console = kernel32.GetConsoleWindow()
 
         # deactivate console's close button
@@ -647,7 +644,7 @@ class App(MainWin):
     ########################################
     #
     ########################################
-    def connect(self, con_id, is_reconnect=False):  #open_explorer=True):
+    def connect(self, con_id, is_reconnect=False):
         con = self.connection_dict[con_id]
 
         # first check if host and ip are accessible at all
