@@ -607,7 +607,10 @@ class App(MainWin):
                 break
 
         kernel32.SetConsoleTitleW(_("Debug Console"))
+
         self.hwnd_console = kernel32.GetConsoleWindow()
+
+        user32.SendMessageW(self.hwnd_console, WM_SETICON, 0, self.hicon)
 
         # deactivate console's close button
         hmenu = user32.GetSystemMenu(self.hwnd_console, FALSE)
@@ -628,7 +631,6 @@ class App(MainWin):
         lStdInHandle = kernel32.GetStdHandle(STD_INPUT_HANDLE)
         hConHandle = msvcrt.open_osfhandle(lStdInHandle, os.O_TEXT)
         sys.stdin = io.TextIOWrapper(os.fdopen(hConHandle, 'rb', 0), write_through=True)
-
 
     ########################################
     #
