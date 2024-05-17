@@ -29,14 +29,13 @@ OutFile "..\dist\$%APP_NAME%-x64-setup.exe"
 Unicode True
 
 ;Default installation folder
-InstallDir $PROGRAMFILES64\$%APP_NAME%
+InstallDir $LOCALAPPDATA\Programs\$%APP_NAME%
 
 ;Get installation folder from registry if available
-InstallDirRegKey HKLM "Software\$%APP_NAME%" "Install_Dir"
+InstallDirRegKey HKCU "Software\$%APP_NAME%" "Install_Dir"
 
 ;Request application privileges for Windows Vista
-;RequestExecutionLevel user
-RequestExecutionLevel admin
+RequestExecutionLevel user
 
 Setcompressor LZMA
 
@@ -87,17 +86,17 @@ Section "$%APP_NAME% (required)"
   File /r "..\dist\$%APP_NAME%\*.*"
 
   ; Write the installation path into the registry
-  WriteRegStr HKLM SOFTWARE\$%APP_NAME% "Install_Dir" "$INSTDIR"
+  WriteRegStr HKCU SOFTWARE\$%APP_NAME% "Install_Dir" "$INSTDIR"
 
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "DisplayName" "$%APP_NAME%"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "NoRepair" 1
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "DisplayName" "$%APP_NAME%"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "NoModify" 1
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "NoRepair" 1
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
-  WriteRegStr HKCU SOFTWARE\$%APP_NAME% "connections" "[]"
-  WriteRegDWORD HKCU SOFTWARE\$%APP_NAME% "dark" 1
+  ; WriteRegStr HKCU SOFTWARE\$%APP_NAME% "connections" "[]"
+  ; WriteRegDWORD HKCU SOFTWARE\$%APP_NAME% "dark" 1
 
 SectionEnd
 
@@ -118,8 +117,8 @@ SectionEnd
 Section "Uninstall"
 
   ; Remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%"
-  DeleteRegKey HKLM SOFTWARE\$%APP_NAME%
+  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%"
+  DeleteRegKey HKCU SOFTWARE\$%APP_NAME%
   DeleteRegKey HKCU SOFTWARE\$%APP_NAME%
   DeleteRegValue HKCU SOFTWARE\MICROSOFT\WINDOWS\CURRENTVERSION\RUN "$%APP_NAME%"
 

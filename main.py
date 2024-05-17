@@ -34,7 +34,7 @@ IS_CONSOLE = kernel32.GetStdHandle(STD_OUTPUT_HANDLE) != 0
 
 class App(MainWin):
 
-    def __init__(self):
+    def __init__(self, args=[]):
 
         self._con_counter = CON_ID_START
         self._current_connections = {}
@@ -282,8 +282,10 @@ class App(MainWin):
             if advapi32.RegQueryValueExW(hkey, 'connections', None, None, data_str,
                     byref(DWORD(sizeof(data_str)))) == ERROR_SUCCESS:
                 connections = eval(cast(data_str, LPWSTR).value)
-            if advapi32.RegQueryValueExW(hkey, 'dark', None, None, byref(data_int), byref(cbData)) == ERROR_SUCCESS:
-                use_dark = cast(data_int, POINTER(DWORD)).contents.value == 1
+
+        if advapi32.RegQueryValueExW(hkey, 'dark', None, None, byref(data_int), byref(DWORD(sizeof(data_int)))) == ERROR_SUCCESS:
+            use_dark = cast(data_int, POINTER(DWORD)).contents.value == 1
+
         advapi32.RegCloseKey(hkey)
 
         return connections, use_dark, has_autorun
@@ -816,4 +818,4 @@ if __name__ == "__main__":
     # force single instance
     if user32.FindWindowW(APP_CLASS, NULL):
         sys.exit(1)
-    sys.exit(App().run())
+    sys.exit(App(sys.argv[1:]).run())
