@@ -36,5 +36,6 @@
 	"Connect": "Verbinden",
 	"Export...": "Exportieren...",
 	"Import...": "Importieren...",
-	"PPK_KEY_WARNING": "{} verwendet Private Key-Dateien im PuTTY-Format (*.ppk), während SSHFS stattdessen Key-Dateien im OpenSSH-Format benötigt.\n\nBei folgenden Dateien wurde die Endung '.ppk' entfernt, bitte sorge dafür dass diese Dateien tatsächlich existieren:\n\n",
+	"Supported Files": "Unterstützte Dateien",
+	"MSG_PPK_KEY_CONVERSION": "{} verwendet Private Key-Dateien im PuTTY-Format (*.ppk), während SSHFS stattdessen Key-Dateien im OpenSSH-Format benötigt.\n\nSoll versucht werden, für die untenstehenden Key-Dateien automatisch die benötigten OpenSHH-Dateien im selben Ordner zu erzeugen?\n\n",
 }

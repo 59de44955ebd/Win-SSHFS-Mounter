@@ -14,20 +14,20 @@ import time
 import traceback
 import urllib.parse
 
-from winapp.mainwin import *
-from winapp.dlls import *
-from winapp.trayicon import *
-from winapp.controls.button import *
-from winapp.controls.listbox import *
+from ctypes import byref, cast, sizeof, create_unicode_buffer
+from ctypes.wintypes import LPWSTR, HKEY, POINT
+
 from winapp.const import *
+from winapp.wintypes_extended import *
+from winapp.dlls import advapi32, kernel32, user32
+from winapp.mainwin import MainWin, LPMINMAXINFO
+from winapp.dialog import Dialog
+from winapp.trayicon import TrayIcon
+from winapp.controls.button import Button
+from winapp.controls.listbox import ListBox
+
 from const import *
 
-class COPYDATASTRUCT(Structure):
-    _fields_ = [
-        ('dwData', wintypes.LPARAM),
-        ('cbData', wintypes.DWORD),
-        ('lpData', c_void_p)
-    ]
 
 LANG = locale.windows_locale[kernel32.GetUserDefaultUILanguage()]
 if not os.path.isdir(os.path.join(APP_DIR, 'resources', 'locale', LANG)):
@@ -93,50 +93,51 @@ class App(MainWin):
                     height=height - 2 * MARGIN,
                     flags=SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
+            button_x = width - BUTTON_WIDTH - MARGIN
             self.button_add.set_window_pos(
-                    x=width - BUTTON_WIDTH - MARGIN,
+                    x=button_x,
                     y=20,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_edit.set_window_pos(
-                    x=width - BUTTON_WIDTH - MARGIN,
+                    x=button_x,
                     y=50,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_delete.set_window_pos(
-                    x=width - BUTTON_WIDTH - MARGIN,
+                    x=button_x,
                     y=80,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_connect.set_window_pos(
-                    x=width - BUTTON_WIDTH - MARGIN,
+                    x=button_x,
                     y=125,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_export.set_window_pos(
-                    x=width - BUTTON_WIDTH - MARGIN,
+                    x=button_x,
                     y=170,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_import.set_window_pos(
-                    x=width - BUTTON_WIDTH - MARGIN,
+                    x=button_x,
                     y=200,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_dark.set_window_pos(
-                    x=width - BUTTON_WIDTH - MARGIN,
+                    x=button_x,
                     y=height - 2 * MARGIN - 12,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             if not IS_CONSOLE:
                 self.button_console.set_window_pos(
-                        x=width - BUTTON_WIDTH - MARGIN,
+                        x=button_x,
                         y=height - 2 * MARGIN - (60 if IS_FROZEN else 36),
                         flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                         )
             if IS_FROZEN:
                 self.button_autorun.set_window_pos(
-                        x=width - BUTTON_WIDTH - MARGIN,
+                        x=button_x,
                         y=height - 2 * MARGIN - 36,
                         flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                         )
@@ -396,7 +397,6 @@ class App(MainWin):
             window_title=_("Edit Connection"))
         self.button_edit.set_font()
         self.button_edit.enable_window(0)
-
         self.button_delete = Button(
             self,
             style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
@@ -897,7 +897,7 @@ class App(MainWin):
     ########################################
     def import_connections(self):
         fn = self.get_open_filename(_('Import connections'), default_extension='.pson',
-                filter_string='Win-SSHFS-Mounter (*.pson)\0*.pson*\0FileZilla Sites (sitemanager.xml, sites.xml)\0*.xml\0WinSCP Sessions (WinSCP.ini)\0WinSCP.ini\0\0',
+                filter_string=_('Supported Files') + ' (*.pson *.xml *.ini)\0*.pson;*.xml;*.ini\0Win-SSHFS-Mounter (*.pson)\0*.pson*\0FileZilla (sitemanager.xml sites.xml)\0*.xml\0WinSCP (WinSCP.ini)\0WinSCP.ini\0\0',
                 #initial_path='connections.pson'
                 )
         if not fn:
@@ -936,9 +936,9 @@ class App(MainWin):
                         con["password"] = self._enc(base64.b64decode(data['pass']))
                     if 'keyfile' in data:
                         if data['keyfile'].endswith('.ppk'):
-                            data['keyfile'] = data['keyfile'][:-4]
-                            if data['keyfile'] not in ppk_files:
+                            if not os.path.isfile(data['keyfile'][:-4]) and data['keyfile'] not in ppk_files:
                                 ppk_files.append(data['keyfile'])
+                            data['keyfile'] = data['keyfile'][:-4]
                         con['key_file'] = data['keyfile']
                     if 'remotedir' in data:
                         parts = data['remotedir'].split(' ')
@@ -946,8 +946,17 @@ class App(MainWin):
                         con['path'] = '/' + '/'.join(parts)
                     imported.append(con)
                 if ppk_files:
-                    self.show_message_box(_('PPK_KEY_WARNING').format('FileZilla') + '\n'.join(ppk_files),
-                            caption='Private Key Files')
+                    res = self.show_message_box(
+                            _('MSG_PPK_KEY_CONVERSION').format('FileZilla') + '\n'.join(ppk_files),
+                            _('Private Key Files'),
+                            MB_ICONQUESTION | MB_YESNO)
+                    if res == IDYES:
+                        puttygen = os.path.join(BIN_DIR, 'puttygen.exe')
+                        for ppk in ppk_files:
+                            proc = subprocess.Popen(
+                                    f'"{puttygen}" "{ppk}" -O private-openssh -o "{ppk[:-4]}"',
+                                    env = {'PATH': BIN_DIR},
+                                    )
             except Exception as e:
                 print(e)
                 return
@@ -1005,9 +1014,9 @@ class App(MainWin):
                         con['auth'] = 'key'
                         key_file = urllib.parse.unquote(row['publickeyfile'])
                         if key_file.endswith('.ppk'):
-                            key_file = key_file[:-4]
-                            if key_file not in ppk_files:
+                            if not os.path.isfile(key_file[:-4]) and key_file not in ppk_files:
                                 ppk_files.append(key_file)
+                            key_file = key_file[:-4]
                         con['key_file'] = key_file
                     if 'remotedirectory' in row:
                         con['path'] = row['remotedirectory']
@@ -1016,9 +1025,19 @@ class App(MainWin):
                         pw = decrypt_winscp_password(row['password'], row['username'] + row['hostname'])
                         con["password"] = self._enc(pw)
                     imported.append(con)
+
                 if ppk_files:
-                    self.show_message_box(_('PPK_KEY_WARNING').format('WinSCP') + '\n'.join(ppk_files),
-                            caption='Private Key Files')
+                    res = self.show_message_box(
+                            _('MSG_PPK_KEY_CONVERSION').format('WinSCP') + '\n'.join(ppk_files),
+                            _('Private Key Files'),
+                            MB_ICONQUESTION | MB_YESNO)
+                    if res == IDYES:
+                        puttygen = os.path.join(BIN_DIR, 'puttygen.exe')
+                        for ppk in ppk_files:
+                            proc = subprocess.Popen(
+                                    f'"{puttygen}" "{ppk}" -O private-openssh -o "{ppk[:-4]}"',
+                                    env = {'PATH': BIN_DIR},
+                                    )
             except Exception as e:
                 print(e)
                 return
@@ -1034,12 +1053,12 @@ class App(MainWin):
                 while con['name'] + f' ({i})' in con_names:
                     i += 1
                 con['name'] += f' ({i})'
-
             con_id = self._new_con_id()
             self.connection_dict[con_id] = con
             pos = self.listbox.add_string(con["name"])
             self.listbox.set_item_data(pos, con_id)
 
+        self.save_connections(list(self.connection_dict.values()))
         self.create_popup_menu()
 
     ########################################

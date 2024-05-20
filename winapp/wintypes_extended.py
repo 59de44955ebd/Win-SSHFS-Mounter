@@ -50,6 +50,13 @@ class ACCEL(Structure):
         ("cmd", WORD),
     ]
 
+class COPYDATASTRUCT(Structure):
+    _fields_ = [
+        ('dwData', LPARAM),
+        ('cbData', DWORD),
+        ('lpData', LPVOID)
+    ]
+
 # Macros
 def MAKELONG(wLow, wHigh):
     return LONG(wLow | wHigh << 16).value

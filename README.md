@@ -1,6 +1,6 @@
 # Win-SSHFS-Mounter
 
-Win-SSHFS-Mounter is a small System Tray application for Windows that allows to mount and unmount [SSHFS](https://github.com/libfuse/sshfs) Drives. It depends on [WinFsp](https://winfsp.dev/). Other than that it has no more dependancies, it does **not** use [sshfs-win](https://github.com/winfsp/sshfs-win), but instead bundled unaltered versions of [Cygwin](https://www.cygwin.com/)'s sshfs, ssh and sshpass.
+Win-SSHFS-Mounter is a small System Tray application for Windows that allows to mount and unmount [SSHFS](https://github.com/libfuse/sshfs) Drives. It depends on [WinFsp](https://winfsp.dev/). Other than that it has no more dependancies, it does **not** use [sshfs-win](https://github.com/winfsp/sshfs-win), but instead bundled unaltered versions of [Cygwin](https://www.cygwin.com/)'s sshfs, ssh, sshpass and puttygen.
 
 ## Setup and usage
 
@@ -13,7 +13,8 @@ Win-SSHFS-Mounter is a small System Tray application for Windows that allows to 
 
 ## Features
 
-* Import sites from [FileZilla](https://filezilla-project.org/) (sitemanager.xml, sites.xml) and [WinSCP](https://winscp.net/) (WinSCP.ini), including saved passwords.
+* Import sites from [FileZilla](https://filezilla-project.org/) (sitemanager.xml/sites.xml) and [WinSCP](https://winscp.net/) (WinSCP.ini), including saved passwords.
+* When importing sites from FileZilla or WinSCP, [PuTTY](https://www.putty.org/) private key files (.ppk) can optionally be converted to OpenSSH format on the fly.
 
 ## Screenshots
 
