@@ -1,1 +1,3 @@
-{}
+{
+	"PPK_KEY_WARNING": "{} uses PuTTY private key files (*.ppk), whereas SSHFS requires OpenSSH key files.\n\nFor the following key file pathes extension '.ppk' was stripped, please verify that those keys actually exist:\n\n",
+}

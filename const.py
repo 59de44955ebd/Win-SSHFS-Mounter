@@ -22,7 +22,7 @@ IDC_EDIT = 3
 CON_ID_START = 100
 
 BUTTON_WIDTH = 140
-BUTTON_HEIGHT = 25
+BUTTON_HEIGHT = 23
 MARGIN = 10
 
 # Simple XOR encryption of passwords stored in the Windows Registry

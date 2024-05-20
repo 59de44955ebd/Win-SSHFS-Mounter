@@ -1,7 +1,10 @@
+import base64
+import configparser
 import io
 import locale
 import msvcrt
 import os
+import random
 import re
 import signal
 import socket
@@ -9,6 +12,7 @@ import subprocess
 import sys
 import time
 import traceback
+import urllib.parse
 
 from winapp.mainwin import *
 from winapp.dlls import *
@@ -16,8 +20,14 @@ from winapp.trayicon import *
 from winapp.controls.button import *
 from winapp.controls.listbox import *
 from winapp.const import *
-
 from const import *
+
+class COPYDATASTRUCT(Structure):
+    _fields_ = [
+        ('dwData', wintypes.LPARAM),
+        ('cbData', wintypes.DWORD),
+        ('lpData', c_void_p)
+    ]
 
 LANG = locale.windows_locale[kernel32.GetUserDefaultUILanguage()]
 if not os.path.isdir(os.path.join(APP_DIR, 'resources', 'locale', LANG)):
@@ -61,6 +71,7 @@ class App(MainWin):
         self.trayicon = TrayIcon(self, self.hicon, APP_NAME, MSG_TRAYICON, show=False)
 
         connection_list, use_dark, has_autorun = self.load_connections()
+
         self.connection_dict = {}
         for row in connection_list:
             con_id = self._new_con_id()
@@ -89,12 +100,27 @@ class App(MainWin):
                     )
             self.button_edit.set_window_pos(
                     x=width - BUTTON_WIDTH - MARGIN,
-                    y=55,
+                    y=50,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_delete.set_window_pos(
                     x=width - BUTTON_WIDTH - MARGIN,
-                    y=90,
+                    y=80,
+                    flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
+                    )
+            self.button_connect.set_window_pos(
+                    x=width - BUTTON_WIDTH - MARGIN,
+                    y=125,
+                    flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
+                    )
+            self.button_export.set_window_pos(
+                    x=width - BUTTON_WIDTH - MARGIN,
+                    y=170,
+                    flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
+                    )
+            self.button_import.set_window_pos(
+                    x=width - BUTTON_WIDTH - MARGIN,
+                    y=200,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_dark.set_window_pos(
@@ -121,7 +147,7 @@ class App(MainWin):
         ########################################
         def _on_WM_GETMINMAXINFO(hwnd, wparam, lparam):
             mmi = cast(lparam, LPMINMAXINFO).contents
-            mmi.ptMinTrackSize.x = mmi.ptMinTrackSize.y = 320
+            mmi.ptMinTrackSize.x = mmi.ptMinTrackSize.y = 360
             return 0
 
         self.register_message_callback(WM_GETMINMAXINFO, _on_WM_GETMINMAXINFO)
@@ -171,6 +197,7 @@ class App(MainWin):
                     idx = user32.SendMessageW(self.listbox.hwnd, LB_GETCURSEL, 0, 0)
                     self.button_edit.enable_window(int(idx != LB_ERR))
                     self.button_delete.enable_window(int(idx != LB_ERR))
+                    self.button_connect.enable_window(int(idx != LB_ERR))
                 elif command == LBN_DBLCLK:
                     self.edit_connection()
 
@@ -185,6 +212,21 @@ class App(MainWin):
             elif lparam == self.button_delete.hwnd:
                 if command == BN_CLICKED:
                     self.delete_connection()
+
+            elif lparam == self.button_connect.hwnd:
+                if command == BN_CLICKED:
+                    idx = user32.SendMessageW(self.listbox.hwnd, LB_GETCURSEL, 0, 0)
+                    con_id = user32.SendMessageW(self.listbox.hwnd, LB_GETITEMDATA, idx, 0)
+                    if con_id not in self._current_connections:
+                        self.connect(con_id)
+
+            elif lparam == self.button_export.hwnd:
+                if command == BN_CLICKED:
+                    self.export_connections()
+
+            elif lparam == self.button_import.hwnd:
+                if command == BN_CLICKED:
+                    self.import_connections()
 
             elif lparam == self.button_dark.hwnd:
                 if command == BN_CLICKED:
@@ -215,14 +257,30 @@ class App(MainWin):
                     self._debug = '-odebug -ologlevel=debug1' if is_checked else ''
 
             return FALSE
+
         self.register_message_callback(WM_COMMAND, _on_WM_COMMAND)
+
+        ########################################
+        #
+        ########################################
+        def _on_WM_COPYDATA(hwnd, wparam, lparam):
+            ds = cast(lparam, POINTER(COPYDATASTRUCT))
+            args = eval(cast(ds.contents.lpData, LPWSTR).value)
+            if type(args) == list:
+                if len(args) >= 2:
+                    if args[0] == '-eject':
+                        self.disconnect_by_letter(args[1][:1])
+                    elif args[0] == '-mount':
+                        self.connect_by_name(args[1])
+
+        self.register_message_callback(WM_COPYDATA, _on_WM_COPYDATA)
 
         ########################################
         #
         ########################################
         def _on_poll():
             for con_id in list(self._current_connections.keys()):
-                proc = self._current_connections[con_id]
+                proc = self._current_connections[con_id]['proc']
                 exit_code = proc.poll()
                 if exit_code is not None:
                     #print('Process ended', exit_code)
@@ -338,6 +396,7 @@ class App(MainWin):
             window_title=_("Edit Connection"))
         self.button_edit.set_font()
         self.button_edit.enable_window(0)
+
         self.button_delete = Button(
             self,
             style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
@@ -345,6 +404,25 @@ class App(MainWin):
             window_title=_("Delete Connection"))
         self.button_delete.set_font()
         self.button_delete.enable_window(0)
+        self.button_connect = Button(
+            self,
+            style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            width=BUTTON_WIDTH, height=BUTTON_HEIGHT,
+            window_title=_("Connect"))
+        self.button_connect.set_font()
+        self.button_connect.enable_window(0)
+        self.button_export = Button(
+            self,
+            style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            width=BUTTON_WIDTH, height=BUTTON_HEIGHT,
+            window_title=_("Export..."))
+        self.button_export.set_font()
+        self.button_import = Button(
+            self,
+            style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            width=BUTTON_WIDTH, height=BUTTON_HEIGHT,
+            window_title=_("Import..."))
+        self.button_import.set_font()
         self.button_dark = Button(
             self,
             style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
@@ -451,7 +529,7 @@ class App(MainWin):
                 hwnd_static_password = user32.GetDlgItem(hwnd, IDC_STATIC_PASSWORD)
                 hwnd_edit_password = user32.GetDlgItem(hwnd, IDC_EDIT_PASSWORD)
                 if con["auth"] == "password":
-                    pw = self._xor(bytes.fromhex(con['password'])).decode()
+                    pw = self._dec(con['password'])
                     user32.SetWindowTextW(hwnd_edit_password, create_unicode_buffer(pw))
                 user32.ShowWindow(hwnd_static_password, int(con["auth"] == "password"))
                 user32.ShowWindow(hwnd_edit_password, int(con["auth"] == "password"))
@@ -554,8 +632,7 @@ class App(MainWin):
                                     _('Password missing'),
                                     MB_ICONERROR | MB_OK)
                                 return FALSE
-                            con["password"] = self._xor(pw.encode()).hex()
-
+                            con["password"] = self._enc(pw)
 
                         con["auto"] = user32.SendMessageW(user32.GetDlgItem(hwnd, IDC_CHECK_AUTOCONNECT), BM_GETCHECK, 0, 0) == BST_CHECKED
                         con["reconnect"] = user32.SendMessageW(user32.GetDlgItem(hwnd, IDC_CHECK_RECONNECT), BM_GETCHECK, 0, 0) == BST_CHECKED
@@ -680,19 +757,42 @@ class App(MainWin):
         env = {'PATH': BIN_DIR}
         volname = re.sub(r'[<>:"/\\|?*]', '_', con['name'][:32])
         command = ("sshfs {user}@{host}:{path} {use_letter}: -p{port} -ovolname='{volname}' -f {debug} "
-            "-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oidmap=user -ouid=-1 "
+            "-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oServerAliveInterval=30 -oidmap=user -ouid=-1 "
             "-ogid=-1 -oumask=000 -ocreate_umask=000 -omax_readahead=1GB "
             "-oallow_other -olarge_read -okernel_cache -ofollow_symlinks -oConnectTimeout={connect_timeout}"
             .format(**{'volname': volname, 'use_letter': letter, 'connect_timeout': SSH_CONNECT_TIMEOUT_SEC,
                     'debug': self._debug}, **con))
 
         if con["auth"] == "key":
+
+            if not os.path.isfile(con['key_file']):
+                self.show_message_box(
+                    _('The assigned private key file does not exist:\n\n{}').format(con['key_file']),
+                    _('Key doesn\'t exist'),
+                    MB_ICONERROR | MB_OK, dialog_width=240)
+                return
+
             command += " -oPreferredAuthentications=publickey -oIdentityFile='{}'".format(con['key_file'].replace('\\', '/'))
-            self._current_connections[con_id] = subprocess.Popen(
+
+            # check if ke is protected by passphrase
+            with open(con['key_file'], 'r') as f:
+                is_protected = 'Proc-Type: 4,ENCRYPTED' in f.read()
+
+            if is_protected:
+                pw = self.show_prompt(text=_('Passphrase for key "{}":').format(os.path.basename(con['key_file'])),
+                        caption=_('Enter Passphrase'), is_password=True, dialog_width=200)
+                if not pw:
+                    return
+                env["SSHPASS"] = pw
+                command += f" -ossh_command='sshpass -e -P assphrase ssh'"
+
+            proc = subprocess.Popen(
                     f'"{bash}" -c "{command}"',
                     env = env,
                     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP,
                     )
+            self._current_connections[con_id] = {'proc': proc, 'letter' : letter}
+
         else:
             if con["auth"] == "ask_password":
                 pw = self.show_prompt(text=_('Password for {}:').format(con['name']),
@@ -700,18 +800,17 @@ class App(MainWin):
                 if not pw:
                     return
             else:
-                pw = self._xor(bytes.fromhex(con['password'])).decode()
-            command += " -opassword_stdin"
-            self._current_connections[con_id] = subprocess.Popen(
+                pw = self._dec(con['password'])
+
+            env["SSHPASS"] = pw
+            command += f" -ossh_command='sshpass -e ssh'"
+
+            proc = subprocess.Popen(
                     f'"{bash}" -c "{command}"',
                     env = env,
-                    stdin = subprocess.PIPE,
                     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP,
                     )
-            try:
-                self._current_connections[con_id].communicate(pw.encode() + b'\n', timeout=0)
-            except:
-                pass
+            self._current_connections[con_id] = {'proc': proc, 'letter' : letter}
 
         self._reconnects[con_id] = self._reconnects[con_id] + 1 if is_reconnect else 0
 
@@ -726,12 +825,30 @@ class App(MainWin):
     ########################################
     #
     ########################################
+    def connect_by_name(self, con_name):
+        for con_id, row in self._current_connections.items():
+            if row['name'] == con_name:
+                self.connect(con_id)
+                break
+
+    ########################################
+    #
+    ########################################
     def disconnect(self, con_id):
         if con_id in self._current_connections:
-            proc = self._current_connections[con_id]
+            proc = self._current_connections[con_id]['proc']
             del self._current_connections[con_id]
             proc.send_signal(signal.CTRL_BREAK_EVENT)
         user32.CheckMenuItem(self._hmenu_popup, con_id, MF_BYCOMMAND | MF_UNCHECKED)
+
+    ########################################
+    #
+    ########################################
+    def disconnect_by_letter(self, letter):
+        for con_id, row in self._current_connections.items():
+            if row['letter'] == letter:
+                self.disconnect(con_id)
+                break
 
     ########################################
     #
@@ -756,8 +873,173 @@ class App(MainWin):
         user32.SendMessageW(self.listbox.hwnd, LB_DELETESTRING, idx, 0)
         self.button_edit.enable_window(0)
         self.button_delete.enable_window(0)
+        self.button_connect.enable_window(0)
         del self.connection_dict[con_id]
         self.save_connections(list(self.connection_dict.values()))
+        self.create_popup_menu()
+
+    ########################################
+    #
+    ########################################
+    def export_connections(self):
+        fn = self.get_save_filename(_('Export connections'), default_extension='.pson',
+                filter_string='All Files (*.*)\0*.*\0\0', initial_path='connections.pson')
+        if not fn:
+            return
+        try:
+            with open(fn, 'w') as f:
+                f.write(str(list(self.connection_dict.values())))
+        except Exception as e:
+            print(e)
+
+    ########################################
+    #
+    ########################################
+    def import_connections(self):
+        fn = self.get_open_filename(_('Import connections'), default_extension='.pson',
+                filter_string='Win-SSHFS-Mounter (*.pson)\0*.pson*\0FileZilla Sites (sitemanager.xml, sites.xml)\0*.xml\0WinSCP Sessions (WinSCP.ini)\0WinSCP.ini\0\0',
+                #initial_path='connections.pson'
+                )
+        if not fn:
+            return
+        if fn.lower().endswith('.pson'):
+            try:
+                with open(fn, 'r') as f:
+                    imported = eval(f.read())
+            except Exception as e:
+                print(e)
+                return
+        elif fn.lower().endswith('.xml'):
+            # Generally considered a bad idea, but whatever, to keep the app small we don't add a xml parser like expat,
+            # but instead use RegEx. If the FileZilla XML is not 100% valid and in expected format, the import would fail anyway
+            try:
+                imported = []
+                ppk_files = []
+                with open(fn, 'r') as f:
+                    xml = f.read().replace('\n', '')
+                for row in re.findall(r"<Server>(.*?)</Server>", xml):
+                    data = {k.lower(): v for (k, v) in re.findall(r"<([^ >]*).*?>(.*?)</.*?>", str(row))}
+                    if data['protocol'] != '1':
+                        continue
+                    con = {'letter': None, 'auto': False, 'reconnect': False, 'path': '/', 'auth': None}
+                    if data['logontype'] == '1':
+                        con['auth'] = 'password'
+                    elif data['logontype'] == '5':
+                        con['auth'] = 'key'
+                    elif data['logontype'] == '3':
+                        con['auth'] = 'ask_password'
+                    else:
+                        continue
+                    for k in ('name', 'host', 'port', 'user'):
+                        con[k] = data[k]
+                    if 'pass' in data:
+                        con["password"] = self._enc(base64.b64decode(data['pass']))
+                    if 'keyfile' in data:
+                        if data['keyfile'].endswith('.ppk'):
+                            data['keyfile'] = data['keyfile'][:-4]
+                            if data['keyfile'] not in ppk_files:
+                                ppk_files.append(data['keyfile'])
+                        con['key_file'] = data['keyfile']
+                    if 'remotedir' in data:
+                        parts = data['remotedir'].split(' ')
+                        parts = [parts[i] for i in range(3, len(parts), 2)]
+                        con['path'] = '/' + '/'.join(parts)
+                    imported.append(con)
+                if ppk_files:
+                    self.show_message_box(_('PPK_KEY_WARNING').format('FileZilla') + '\n'.join(ppk_files),
+                            caption='Private Key Files')
+            except Exception as e:
+                print(e)
+                return
+        elif fn.lower().endswith('.ini'):
+
+            def decrypt_winscp_password(password_hex, key):
+                PWALG_SIMPLE_FLAG = 0xFF
+                PWALG_SIMPLE_MAGIC = 0xA3
+
+                password = [int(c, 16) for c in password_hex]
+                idx = 0
+
+                def decrypt_next_char():
+                    nonlocal idx
+                    c = (~((((password[idx] << 4) & 0xFF) + password[idx + 1]) ^ PWALG_SIMPLE_MAGIC)) & 0xFF
+                    idx += 2
+                    return c
+
+                flag = decrypt_next_char()
+                if flag == PWALG_SIMPLE_FLAG:
+                    idx += 2  # decrypt_next_char()  # dummy
+                    length = decrypt_next_char()
+                else:
+                    length = flag
+                offset = decrypt_next_char() * 2
+                idx += offset
+                result = []
+                for i in range(length):
+                    result.append(decrypt_next_char())
+                result = ''.join(chr(c) for c in result)
+                if flag == PWALG_SIMPLE_FLAG:
+                    if result[:len(key)] != key:
+                        result = ""
+                    else:
+                        result = result[len(key):]
+                return result
+
+            try:
+                imported = []
+                ppk_files = []
+                config = configparser.ConfigParser(strict=False)
+                config.read(fn)
+                for k, row in config.__dict__['_sections'].items():
+                    if not k.startswith('Sessions\\'):
+                        continue
+                    if 'fsprotocol' in row and row['fsprotocol'] == '5':
+                        continue
+                    session_name = urllib.parse.unquote(k[9:].split('/')[-1])
+                    con = {'name': session_name, 'host': row['hostname'], 'user': row['username'],
+                            'letter': None, 'auto': False, 'reconnect': False, 'path': '/',
+                            'auth': 'ask_password', 'port': 22}
+                    if 'portnumber' in row:
+                        con['port'] = row['portnumber']
+                    if 'publickeyfile' in row:
+                        con['auth'] = 'key'
+                        key_file = urllib.parse.unquote(row['publickeyfile'])
+                        if key_file.endswith('.ppk'):
+                            key_file = key_file[:-4]
+                            if key_file not in ppk_files:
+                                ppk_files.append(key_file)
+                        con['key_file'] = key_file
+                    if 'remotedirectory' in row:
+                        con['path'] = row['remotedirectory']
+                    if 'password' in row:
+                        con['auth'] = 'password'
+                        pw = decrypt_winscp_password(row['password'], row['username'] + row['hostname'])
+                        con["password"] = self._enc(pw)
+                    imported.append(con)
+                if ppk_files:
+                    self.show_message_box(_('PPK_KEY_WARNING').format('WinSCP') + '\n'.join(ppk_files),
+                            caption='Private Key Files')
+            except Exception as e:
+                print(e)
+                return
+
+        else:
+            return
+
+        # make names unique
+        con_names = [con['name'] for con in self.connection_dict.values()]
+        for con in imported:
+            if con['name'] in con_names:
+                i = 1
+                while con['name'] + f' ({i})' in con_names:
+                    i += 1
+                con['name'] += f' ({i})'
+
+            con_id = self._new_con_id()
+            self.connection_dict[con_id] = con
+            pos = self.listbox.add_string(con["name"])
+            self.listbox.set_item_data(pos, con_id)
+
         self.create_popup_menu()
 
     ########################################
@@ -808,8 +1090,26 @@ class App(MainWin):
     ########################################
     #
     ########################################
-    def _xor(self, message):
-        return bytes(a ^ b for a, b in zip(message, MASTER_KEY))
+    def _enc(self, pw):
+        if type(pw) == str:
+            pw = pw.encode()
+        # pad with random ASCII letter
+        while True:
+            c = chr(random.randint(32, 127)).encode()
+            if c != pw[-1]:
+                break
+        if len(pw) < 32:
+            pw += c * (32 - len(pw))
+        else:
+            pw += c
+        return bytes(a ^ b for a, b in zip(pw, MASTER_KEY)).hex()
+
+    ########################################
+    #
+    ########################################
+    def _dec(self, pw):
+        pw_dec = bytes(a ^ b for a, b in zip(bytes.fromhex(pw), MASTER_KEY)).decode()
+        return pw_dec.rstrip(pw_dec[-1])
 
 
 ########################################
@@ -818,6 +1118,17 @@ class App(MainWin):
 if __name__ == "__main__":
     sys.excepthook = traceback.print_exception
     # force single instance
-    if user32.FindWindowW(APP_CLASS, NULL):
+    hwnd = user32.FindWindowW(APP_CLASS, NULL)
+    if hwnd:
+        if sys.argv[1:]:
+            # forward commandline args to running instance
+            data = create_unicode_buffer(str(sys.argv[1:]))
+            ds = COPYDATASTRUCT()
+            ds.dwData =	0
+            ds.cbData =	sizeof(data)
+            ds.lpData =	cast(data, LPVOID)
+            user32.SendMessageW(hwnd, WM_COPYDATA, 0, byref(ds))
+
         sys.exit(1)
+
     sys.exit(App(sys.argv[1:]).run())

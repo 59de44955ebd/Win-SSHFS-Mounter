@@ -72,6 +72,8 @@ del "dist\%APP_NAME%\_internal\api-ms-win-crt-time-l1-1-0.dll"
 del "dist\%APP_NAME%\_internal\api-ms-win-crt-utility-l1-1-0.dll"
 del "dist\%APP_NAME%\_internal\libcrypto-3.dll"
 del "dist\%APP_NAME%\_internal\ucrtbase.dll"
+::del "dist\%APP_NAME%\_internal\_ssl.pyd"
+::del "dist\%APP_NAME%\_internal\libssl-3.dll"
 
 if not exist "C:\Program Files (x86)\NSIS\" (
 	echo.

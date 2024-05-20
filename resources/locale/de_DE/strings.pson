@@ -33,4 +33,8 @@
 	"Private Key File": "Private Key-Datei",
 	"Password (saved)": "Passwort (gespeichert)",
 	"Password (ask on connect)": "Passwort (bei Verbindung fragen)",
+	"Connect": "Verbinden",
+	"Export...": "Exportieren...",
+	"Import...": "Importieren...",
+	"PPK_KEY_WARNING": "{} verwendet Private Key-Dateien im PuTTY-Format (*.ppk), während SSHFS stattdessen Key-Dateien im OpenSSH-Format benötigt.\n\nBei folgenden Dateien wurde die Endung '.ppk' entfernt, bitte sorge dafür dass diese Dateien tatsächlich existieren:\n\n",
 }
