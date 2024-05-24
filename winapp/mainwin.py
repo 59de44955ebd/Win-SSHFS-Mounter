@@ -343,16 +343,17 @@ class MainWin(Window):
 #        if not self.is_dark:
 #            return user32.MessageBoxW(self.hwnd, text, caption, utype)
 
-        font = ['MS Shell Dlg', 8]
-#        font = ['Segoe UI', -11]
+#        font = ['MS Shell Dlg', 8]
+        font = ['Segoe UI', 9]
 
-        if utype & MB_ICONINFORMATION:
+        icon_flag = utype & 0xf0
+        if icon_flag == MB_ICONINFORMATION:
             hicon = get_stock_icon(SIID_INFO)
-        elif utype & MB_ICONWARNING:
+        elif icon_flag == MB_ICONWARNING:
             hicon = get_stock_icon(SIID_WARNING)
-        elif utype & MB_ICONERROR:
+        elif icon_flag == MB_ICONERROR:
             hicon = get_stock_icon(SIID_ERROR)
-        elif utype & MB_ICONQUESTION:
+        elif icon_flag == MB_ICONQUESTION:
             hicon = get_stock_icon(SIID_HELP)
         else:
             hicon = None
@@ -360,15 +361,15 @@ class MainWin(Window):
         btn_ids = BUTTON_COMMAND_IDS[utype & 0xf]
 
         if dialog_width is None:
-            dialog_width = 222 if hicon else (219 if len(btn_ids) > 2 else 189)  # 219 => 197
+            dialog_width = 222 if hicon else (219 if len(btn_ids) > 2 else 189)  # 222 + 40
         dialog_min_height = 74 if hicon else 62
 
         text_width = dialog_width - 60 if hicon else dialog_width - 27
         text_x, text_y = 7, 14
-        button_width, button_height, button_dist = 53, 14, 5
+        button_width, button_height, button_dist = 50, 12, 5
         margin_right, margin_bottom = 10, 20
 
-        # calulate required height for message text
+        # calulate required height for message text (in logical coordinates)
         text_height = Dialog.calculate_multiline_text_height(text, text_width, *font)
 
         # if there is an icon and text height is smaller thsn icon height, center text vertically
@@ -430,7 +431,7 @@ class MainWin(Window):
             "rect": [200, 200, dialog_width, 60],
             "style": -2134376256,
             "caption": caption,
-            "font": ["MS Shell Dlg", 8],
+            "font": ['Segoe UI', 9],  #["MS Shell Dlg", 8],
             "controls": [
                 {
                     "caption": text,
@@ -451,14 +452,14 @@ class MainWin(Window):
                     "id": IDC_OK,
                     "class": "BUTTON",
                     "style": WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-                    "rect": [dialog_width - 111, 39, 50, 14]
+                    "rect": [dialog_width - 111, 39, 50, 12]
                 },
                 {
                     "caption": user32.MB_GetString(1),
                     "id": IDC_CANCEL,
                     "class": "BUTTON",
                     "style": WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-                    "rect": [dialog_width - 57, 39, 50, 14]
+                    "rect": [dialog_width - 57, 39, 50, 12]
                 }
             ]
         }

@@ -36,6 +36,10 @@
 	"Connect": "Verbinden",
 	"Export...": "Exportieren...",
 	"Import...": "Importieren...",
+	"Import from PuTTY": "Aus PuTTY importieren",
+	"Import from Cyberduck": "Aus Cyberduck importieren",
 	"Supported Files": "Unterstützte Dateien",
 	"MSG_PPK_KEY_CONVERSION": "{} verwendet Private Key-Dateien im PuTTY-Format (*.ppk), während SSHFS stattdessen Key-Dateien im OpenSSH-Format benötigt.\n\nSoll versucht werden, für die untenstehenden Key-Dateien automatisch die benötigten OpenSHH-Dateien im selben Ordner zu erzeugen?\n\n",
+	"ABOUT_CAPTION": "Über {}",
+	"ABOUT_TEXT": "{} v{}\n\nEine kleine in Python geschriebene Windows System Tray Anwendung zum einhängen/aushängen von SSHFS-Laufwerken",
 }

@@ -166,7 +166,8 @@ class Window(object):
     def send_message(self, msg, wparam=0, lparam=0):
         user32.SendMessageW(self.hwnd, msg, wparam, lparam)
 
-    def set_font(self, font_name='MS Shell Dlg', font_size=8, font_weight=FW_DONTCARE, font_italic=FALSE, hfont=None):
+    # 'MS Shell Dlg',=8
+    def set_font(self, font_name='Segoe UI', font_size=-11, font_weight=FW_DONTCARE, font_italic=FALSE, hfont=None):
         if not hfont:
             cHeight = -kernel32.MulDiv(font_size, DPI_Y, 72)
             hfont = gdi32.CreateFontW(cHeight, 0, 0, 0, font_weight, font_italic, FALSE, FALSE, ANSI_CHARSET, OUT_TT_PRECIS,

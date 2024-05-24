@@ -1,3 +1,6 @@
 {
 	"MSG_PPK_KEY_CONVERSION": "{} uses PuTTY private key files (*.ppk), whereas SSHFS requires OpenSSH key files.\n\nTry to generate the required OpenSSH keys for the key files listed below?\n\n",
+	"ABOUT_CAPTION": "About {}",
+	"ABOUT_TEXT": "{} v{}\n\nA small Windows System Tray application written in Python that allows to mount and unmount SSHFS Drives",
 }
+

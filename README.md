@@ -13,8 +13,8 @@ Win-SSHFS-Mounter is a small System Tray application for Windows that allows to 
 
 ## Features
 
-* Import sites from [FileZilla](https://filezilla-project.org/) (sitemanager.xml/sites.xml) and [WinSCP](https://winscp.net/) (WinSCP.ini), including saved passwords.
-* When importing sites from FileZilla or WinSCP, [PuTTY](https://www.putty.org/) private key files (.ppk) can optionally be converted to OpenSSH format on the fly.
+* Import sites from [FileZilla](https://filezilla-project.org/), [WinSCP](https://winscp.net/), [PuTTY](https://www.putty.org/), [KiTTY](http://www.9bis.net/kitty/), [Cyberduck](https://duck.sh/) and [OpenSSH](https://www.openssh.com/)
+* When importing sites, PuTTY private key files (.ppk) can optionally be converted to OpenSSH format on the fly.
 
 ## Screenshots
 

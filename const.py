@@ -3,6 +3,7 @@ from winapp.const import WM_USER
 
 
 APP_NAME = 'Win-SSHFS-Mounter'
+APP_VERSION = '0.3'
 APP_CLASS = 'WinSSHFSMounterClass'
 APP_DIR = os.path.dirname(os.path.realpath(__file__))
 BIN_DIR = os.path.join(APP_DIR, 'resources', 'cygwin', 'bin')
@@ -11,6 +12,15 @@ MSG_TRAYICON = WM_USER + 1
 
 IDM_SETTINGS = 1
 IDM_QUIT = 2
+IDM_EXPORT = 3
+IDM_IMPORT = 4
+IDM_IMPORT_FILEZILLA = 5
+IDM_IMPORT_WINSCP = 6
+IDM_IMPORT_PUTTY = 7
+IDM_IMPORT_KITTY = 8
+IDM_IMPORT_CYBERDUCK = 9
+IDM_IMPORT_OPENSSH = 10
+IDM_ABOUT = 20
 
 # Icon IDs
 IDI_APPICON = 1
@@ -21,6 +31,7 @@ IDC_EDIT = 3
 
 CON_ID_START = 100
 
+MIN_WINDOW_SIZE = 360
 BUTTON_WIDTH = 140
 BUTTON_HEIGHT = 23
 MARGIN = 10

@@ -119,7 +119,7 @@ Section "Uninstall"
   ; Remove registry keys
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%"
   DeleteRegKey HKCU SOFTWARE\$%APP_NAME%
-  DeleteRegKey HKCU SOFTWARE\$%APP_NAME%
+  DeleteRegKey HKCU SOFTWARE\CLASSES\DRIVE\SHELL\EJECTSSHFS
   DeleteRegValue HKCU SOFTWARE\MICROSOFT\WINDOWS\CURRENTVERSION\RUN "$%APP_NAME%"
 
   ; Remove files and uninstaller

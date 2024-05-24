@@ -60,13 +60,55 @@ class App(MainWin):
         else:
             hicon = user32.LoadImageW(0, os.path.join(APP_DIR, 'app.ico'), IMAGE_ICON, 16, 16, LR_LOADFROMFILE)
 
+        # load menu resource
+        with open(os.path.join(APP_DIR, 'resources', 'locale', LANG, 'menu_app.pson'), 'rb') as f:
+            menu_data = eval(f.read())
+
+        self.COMMAND_MESSAGE_MAP = {
+            IDM_SETTINGS:               self.show_centered,
+            IDM_QUIT:                   self.quit,
+            IDM_EXPORT:                 self.export_connections,
+            IDM_IMPORT:                 self.import_connections,
+            IDM_IMPORT_FILEZILLA:       self.import_connections_filezilla,
+            IDM_IMPORT_WINSCP:          self.import_connections_winscp,
+            IDM_IMPORT_PUTTY:           self.import_connections_putty,
+            IDM_IMPORT_KITTY:           lambda: self.import_connections_putty(True),
+            IDM_IMPORT_CYBERDUCK:       self.import_connections_cyberduck,
+            IDM_IMPORT_OPENSSH:         self.import_connections_openssh,
+            IDM_ABOUT:                  lambda: self.show_message_box(
+                                                _('ABOUT_TEXT').format(APP_NAME, APP_VERSION),
+                                                _('ABOUT_CAPTION').format(APP_NAME))
+                                                }
+
         super().__init__(
                 _('Edit Connections'),
                 window_class=APP_CLASS,
                 width=480, height=480,
                 hicon=hicon,
+                menu_data=menu_data,
                 hbrush = COLOR_3DFACE + 1
                 )
+
+        hkey = HKEY()
+        has_putty = advapi32.RegOpenKeyW(HKEY_CURRENT_USER, 'Software\\SimonTatham\\PuTTY\\Sessions', byref(hkey)) == ERROR_SUCCESS
+        if has_putty:
+            advapi32.RegCloseKey(hkey)
+        if not has_putty:
+            user32.EnableMenuItem(self.hmenu, IDM_IMPORT_PUTTY, MF_BYCOMMAND | MF_DISABLED)
+
+        has_kitty = advapi32.RegOpenKeyW(HKEY_CURRENT_USER, 'Software\\9bis.com\\KiTTY\\Sessions', byref(hkey)) == ERROR_SUCCESS
+        if has_kitty:
+            advapi32.RegCloseKey(hkey)
+        if not has_kitty:
+            user32.EnableMenuItem(self.hmenu, IDM_IMPORT_KITTY, MF_BYCOMMAND | MF_DISABLED)
+
+        has_cyberduck = os.path.isdir(os.path.join(os.environ['APPDATA'], 'Cyberduck', 'Bookmarks'))
+        if not has_cyberduck:
+            user32.EnableMenuItem(self.hmenu, IDM_IMPORT_CYBERDUCK, MF_BYCOMMAND | MF_DISABLED)
+
+        has_openssh = os.path.isfile(os.path.join(os.environ['USERPROFILE'], '.ssh', 'config'))
+        if not has_openssh:
+            user32.EnableMenuItem(self.hmenu, IDM_IMPORT_OPENSSH, MF_BYCOMMAND | MF_DISABLED)
 
         self.trayicon = TrayIcon(self, self.hicon, APP_NAME, MSG_TRAYICON, show=False)
 
@@ -101,27 +143,17 @@ class App(MainWin):
                     )
             self.button_edit.set_window_pos(
                     x=button_x,
-                    y=50,
+                    y=52,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_delete.set_window_pos(
                     x=button_x,
-                    y=80,
+                    y=84,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_connect.set_window_pos(
                     x=button_x,
-                    y=125,
-                    flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
-                    )
-            self.button_export.set_window_pos(
-                    x=button_x,
-                    y=170,
-                    flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
-                    )
-            self.button_import.set_window_pos(
-                    x=button_x,
-                    y=200,
+                    y=84 + 2 * 32,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_dark.set_window_pos(
@@ -148,7 +180,7 @@ class App(MainWin):
         ########################################
         def _on_WM_GETMINMAXINFO(hwnd, wparam, lparam):
             mmi = cast(lparam, LPMINMAXINFO).contents
-            mmi.ptMinTrackSize.x = mmi.ptMinTrackSize.y = 360
+            mmi.ptMinTrackSize.x = mmi.ptMinTrackSize.y = MIN_WINDOW_SIZE
             return 0
 
         self.register_message_callback(WM_GETMINMAXINFO, _on_WM_GETMINMAXINFO)
@@ -175,10 +207,10 @@ class App(MainWin):
                 self.set_foreground_window()
                 item_id = user32.TrackPopupMenuEx(self._hmenu_popup, TPM_LEFTBUTTON | TPM_RETURNCMD, pt.x, pt.y, self.hwnd, 0)
                 user32.PostMessageW(self.hwnd, WM_NULL, 0, 0)
-                if item_id == IDM_SETTINGS:
-                    self.show_centered()
-                elif item_id == IDM_QUIT:
-                    self.quit()
+
+                if item_id in self.COMMAND_MESSAGE_MAP:
+                    self.COMMAND_MESSAGE_MAP[item_id]()
+
                 elif item_id >= CON_ID_START:
                     if item_id in self._current_connections:
                         self.disconnect(item_id)
@@ -193,7 +225,12 @@ class App(MainWin):
         def _on_WM_COMMAND(hwnd, wparam, lparam):
             command = HIWORD(wparam)
 
-            if lparam == self.listbox.hwnd:
+            if lparam == 0:
+                command_id = LOWORD(wparam)
+                if command_id in self.COMMAND_MESSAGE_MAP:
+                    self.COMMAND_MESSAGE_MAP[command_id]()
+
+            elif lparam == self.listbox.hwnd:
                 if command == LBN_SELCHANGE:
                     idx = user32.SendMessageW(self.listbox.hwnd, LB_GETCURSEL, 0, 0)
                     self.button_edit.enable_window(int(idx != LB_ERR))
@@ -220,14 +257,6 @@ class App(MainWin):
                     con_id = user32.SendMessageW(self.listbox.hwnd, LB_GETITEMDATA, idx, 0)
                     if con_id not in self._current_connections:
                         self.connect(con_id)
-
-            elif lparam == self.button_export.hwnd:
-                if command == BN_CLICKED:
-                    self.export_connections()
-
-            elif lparam == self.button_import.hwnd:
-                if command == BN_CLICKED:
-                    self.import_connections()
 
             elif lparam == self.button_dark.hwnd:
                 if command == BN_CLICKED:
@@ -380,7 +409,7 @@ class App(MainWin):
                 style=WS_TABSTOP | WS_CHILD | WS_VISIBLE | LBS_STANDARD | LBS_NOINTEGRALHEIGHT,
                 left=MARGIN, top=MARGIN,
                 )
-        self.listbox.set_font('Segoe UI', 10)
+        self.listbox.set_font()
         for con_id, con in self.connection_dict.items():
             pos = self.listbox.add_string(con["name"])
             self.listbox.set_item_data(pos, con_id)
@@ -389,7 +418,7 @@ class App(MainWin):
             style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
             width=BUTTON_WIDTH, height=BUTTON_HEIGHT,
             window_title=_("Add Connection"))
-        self.button_add.set_font()  # 'Segoe UI', 9
+        self.button_add.set_font()
         self.button_edit = Button(
             self,
             style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
@@ -411,36 +440,24 @@ class App(MainWin):
             window_title=_("Connect"))
         self.button_connect.set_font()
         self.button_connect.enable_window(0)
-        self.button_export = Button(
-            self,
-            style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-            width=BUTTON_WIDTH, height=BUTTON_HEIGHT,
-            window_title=_("Export..."))
-        self.button_export.set_font()
-        self.button_import = Button(
-            self,
-            style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-            width=BUTTON_WIDTH, height=BUTTON_HEIGHT,
-            window_title=_("Import..."))
-        self.button_import.set_font()
         self.button_dark = Button(
             self,
             style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
-            width=BUTTON_WIDTH, height=20,
+            width=BUTTON_WIDTH, height=22,
             window_title=_("Use Dark Mode"))
         self.button_dark.set_font()
         if not IS_CONSOLE:
             self.button_console = Button(
                 self,
                 style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
-                width=BUTTON_WIDTH, height=20,
+                width=BUTTON_WIDTH, height=22,
                 window_title=_("Debug Console"))
             self.button_console.set_font()
         if IS_FROZEN:
             self.button_autorun = Button(
                 self,
                 style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
-                width=BUTTON_WIDTH, height=20,
+                width=BUTTON_WIDTH, height=22,
                 window_title=_("Autorun (Current User)"))
             self.button_autorun.set_font()
         self.hide_focus_rects()
@@ -452,14 +469,12 @@ class App(MainWin):
         if self._hmenu_popup:
             user32.DestroyMenu(self._hmenu_popup)
         menu_data = {"items": []}
-
         for con_id, row in sorted(self.connection_dict.items(), key=lambda x: x[1]['name']):
             menu_data["items"].append({
                 "caption": row["name"],
                 "id": con_id,
                 "flags": "CHECKED" if con_id in self._current_connections else "",
             })
-
         menu_data["items"].append({
             "caption": "-"
         })
@@ -815,6 +830,9 @@ class App(MainWin):
         self._reconnects[con_id] = self._reconnects[con_id] + 1 if is_reconnect else 0
 
         user32.CheckMenuItem(self._hmenu_popup, con_id, MF_BYCOMMAND | MF_CHECKED)
+
+        self._update_explorer_menu()
+
         if not is_reconnect:
             for i in range(10):
                 time.sleep(.5)
@@ -839,6 +857,9 @@ class App(MainWin):
             proc = self._current_connections[con_id]['proc']
             del self._current_connections[con_id]
             proc.send_signal(signal.CTRL_BREAK_EVENT)
+
+            self._update_explorer_menu()
+
         user32.CheckMenuItem(self._hmenu_popup, con_id, MF_BYCOMMAND | MF_UNCHECKED)
 
     ########################################
@@ -849,6 +870,39 @@ class App(MainWin):
             if row['letter'] == letter:
                 self.disconnect(con_id)
                 break
+
+    ########################################
+    #
+    ########################################
+    def _update_explorer_menu(self, deactivate=False):
+        if not IS_FROZEN:
+            return
+        key_path = 'Software\\Classes\\Drive\\shell\\ejectsshfs'
+        hkey = HKEY()
+        if advapi32.RegOpenKeyW(HKEY_CURRENT_USER, key_path, byref(hkey)) != ERROR_SUCCESS:
+            if advapi32.RegCreateKeyW(HKEY_CURRENT_USER, key_path, byref(hkey)) != ERROR_SUCCESS:
+                return
+
+            exe_path = os.path.realpath(os.path.join(APP_DIR, '..', APP_NAME + '.exe'))
+
+            buf = create_unicode_buffer(_('Eject SSHFS Drive'))
+            advapi32.RegSetValueExW(hkey, '', 0, REG_SZ, buf, sizeof(buf))
+
+            buf = create_unicode_buffer(f'"{exe_path}"')
+            advapi32.RegSetValueExW(hkey, 'Icon', 0, REG_SZ, buf, sizeof(buf))
+
+            hkey_sub = HKEY()
+            if advapi32.RegCreateKeyW(HKEY_CURRENT_USER, key_path + '\\command', byref(hkey_sub)) == ERROR_SUCCESS:
+                buf = create_unicode_buffer(f'"{exe_path}" -eject %V')
+                advapi32.RegSetValueExW(hkey_sub, '', 0, REG_SZ, buf, sizeof(buf))
+                advapi32.RegCloseKey(hkey_sub)
+        if deactivate:
+            buf = create_unicode_buffer(':::')
+        else:
+            letters = [row['letter'] + ':' for row in self._current_connections.values()]
+            buf = create_unicode_buffer(' OR '.join(letters) if len(letters) else ':::')
+        advapi32.RegSetValueExW(hkey, 'AppliesTo', 0, REG_SZ, buf, sizeof(buf))
+        advapi32.RegCloseKey(hkey)
 
     ########################################
     #
@@ -897,106 +951,197 @@ class App(MainWin):
     ########################################
     def import_connections(self):
         fn = self.get_open_filename(_('Import connections'), default_extension='.pson',
-                filter_string=_('Supported Files') + ' (*.pson *.xml *.ini)\0*.pson;*.xml;*.ini\0Win-SSHFS-Mounter (*.pson)\0*.pson*\0FileZilla (sitemanager.xml sites.xml)\0*.xml\0WinSCP (WinSCP.ini)\0WinSCP.ini\0\0',
+                filter_string='Win-SSHFS-Mounter Connections File (*.pson)\0*.pson\0\0',
                 #initial_path='connections.pson'
                 )
         if not fn:
             return
-        if fn.lower().endswith('.pson'):
-            try:
-                with open(fn, 'r') as f:
-                    imported = eval(f.read())
-            except Exception as e:
-                print(e)
-                return
-        elif fn.lower().endswith('.xml'):
-            # Generally considered a bad idea, but whatever, to keep the app small we don't add a xml parser like expat,
-            # but instead use RegEx. If the FileZilla XML is not 100% valid and in expected format, the import would fail anyway
-            try:
-                imported = []
-                ppk_files = []
-                with open(fn, 'r') as f:
-                    xml = f.read().replace('\n', '')
-                for row in re.findall(r"<Server>(.*?)</Server>", xml):
-                    data = {k.lower(): v for (k, v) in re.findall(r"<([^ >]*).*?>(.*?)</.*?>", str(row))}
-                    if data['protocol'] != '1':
-                        continue
-                    con = {'letter': None, 'auto': False, 'reconnect': False, 'path': '/', 'auth': None}
-                    if data['logontype'] == '1':
-                        con['auth'] = 'password'
-                    elif data['logontype'] == '5':
-                        con['auth'] = 'key'
-                    elif data['logontype'] == '3':
-                        con['auth'] = 'ask_password'
-                    else:
-                        continue
-                    for k in ('name', 'host', 'port', 'user'):
-                        con[k] = data[k]
-                    if 'pass' in data:
-                        con["password"] = self._enc(base64.b64decode(data['pass']))
-                    if 'keyfile' in data:
-                        if data['keyfile'].endswith('.ppk'):
-                            if not os.path.isfile(data['keyfile'][:-4]) and data['keyfile'] not in ppk_files:
-                                ppk_files.append(data['keyfile'])
-                            data['keyfile'] = data['keyfile'][:-4]
-                        con['key_file'] = data['keyfile']
-                    if 'remotedir' in data:
-                        parts = data['remotedir'].split(' ')
-                        parts = [parts[i] for i in range(3, len(parts), 2)]
-                        con['path'] = '/' + '/'.join(parts)
-                    imported.append(con)
-                if ppk_files:
-                    res = self.show_message_box(
-                            _('MSG_PPK_KEY_CONVERSION').format('FileZilla') + '\n'.join(ppk_files),
-                            _('Private Key Files'),
-                            MB_ICONQUESTION | MB_YESNO)
-                    if res == IDYES:
-                        puttygen = os.path.join(BIN_DIR, 'puttygen.exe')
-                        for ppk in ppk_files:
-                            proc = subprocess.Popen(
-                                    f'"{puttygen}" "{ppk}" -O private-openssh -o "{ppk[:-4]}"',
-                                    env = {'PATH': BIN_DIR},
-                                    )
-            except Exception as e:
-                print(e)
-                return
-        elif fn.lower().endswith('.ini'):
 
-            def decrypt_winscp_password(password_hex, key):
-                PWALG_SIMPLE_FLAG = 0xFF
-                PWALG_SIMPLE_MAGIC = 0xA3
+        try:
+            with open(fn, 'r') as f:
+                imported = eval(f.read())
+        except Exception as e:
+            print(e)
+            return
 
-                password = [int(c, 16) for c in password_hex]
-                idx = 0
+        self._update_connections(imported)
 
-                def decrypt_next_char():
-                    nonlocal idx
-                    c = (~((((password[idx] << 4) & 0xFF) + password[idx + 1]) ^ PWALG_SIMPLE_MAGIC)) & 0xFF
-                    idx += 2
-                    return c
+    ########################################
+    #
+    ########################################
+    def import_connections_filezilla(self):
+        default_xml_file = os.path.join(os.environ['APPDATA'], 'FileZilla', 'sitemanager.xml')
+        fn = self.get_open_filename(_('Import FileZilla Sites'), default_extension='.xml',
+                filter_string='FileZilla XML File (sitemanager.xml sites.xml)\0*.xml\0\0',
+                initial_path=default_xml_file if os.path.isfile(default_xml_file) else ''
+                )
+        if not fn:
+            return
 
-                flag = decrypt_next_char()
-                if flag == PWALG_SIMPLE_FLAG:
-                    idx += 2  # decrypt_next_char()  # dummy
-                    length = decrypt_next_char()
+        # Generally considered a bad idea, but whatever, to keep the app small we don't add a xml parser like expat,
+        # but instead use RegEx. If the FileZilla XML is not 100% valid and in expected format, the import would fail anyway
+        try:
+            imported = []
+            ppk_files = []
+            with open(fn, 'r') as f:
+                xml = f.read().replace('\n', '')
+            for row in re.findall(r"<Server>(.*?)</Server>", xml):
+                data = {k.lower(): v for (k, v) in re.findall(r"<([^ >]*).*?>(.*?)</.*?>", str(row))}
+                if data['protocol'] != '1':
+                    continue
+                con = {'letter': None, 'auto': False, 'reconnect': False, 'path': '/', 'auth': None}
+                if data['logontype'] == '1':
+                    con['auth'] = 'password'
+                elif data['logontype'] == '5':
+                    con['auth'] = 'key'
+                elif data['logontype'] == '3':
+                    con['auth'] = 'ask_password'
                 else:
-                    length = flag
-                offset = decrypt_next_char() * 2
-                idx += offset
-                result = []
-                for i in range(length):
-                    result.append(decrypt_next_char())
-                result = ''.join(chr(c) for c in result)
-                if flag == PWALG_SIMPLE_FLAG:
-                    if result[:len(key)] != key:
-                        result = ""
-                    else:
-                        result = result[len(key):]
-                return result
+                    continue
+                for k in ('name', 'host', 'port', 'user'):
+                    con[k] = data[k]
+                if 'pass' in data:
+                    con["password"] = self._enc(base64.b64decode(data['pass']))
+                if 'keyfile' in data:
+                    if data['keyfile'].endswith('.ppk'):
+                        if not os.path.isfile(data['keyfile'][:-4]) and data['keyfile'] not in ppk_files:
+                            ppk_files.append(data['keyfile'])
+                        data['keyfile'] = data['keyfile'][:-4]
+                    con['key_file'] = data['keyfile']
+                if 'remotedir' in data:
+                    parts = data['remotedir'].split(' ')
+                    parts = [parts[i] for i in range(3, len(parts), 2)]
+                    con['path'] = '/' + '/'.join(parts)
+                imported.append(con)
+            if ppk_files:
+                res = self.show_message_box(
+                        _('MSG_PPK_KEY_CONVERSION').format('FileZilla') + '\n'.join(ppk_files),
+                        _('Private Key Files'),
+                        MB_ICONQUESTION | MB_YESNO)
+                if res == IDYES:
+                    puttygen = os.path.join(BIN_DIR, 'puttygen.exe')
+                    for ppk in ppk_files:
+                        proc = subprocess.Popen(
+                                f'"{puttygen}" "{ppk}" -O private-openssh -o "{ppk[:-4]}"',
+                                env = {'PATH': BIN_DIR},
+                                )
+        except Exception as e:
+            print(e)
+            return
+
+        self._update_connections(imported)
+
+    ########################################
+    #
+    ########################################
+    def import_connections_winscp(self):
+
+        def decrypt_winscp_password(password_hex, key):
+            PWALG_SIMPLE_FLAG = 0xFF
+            PWALG_SIMPLE_MAGIC = 0xA3
+
+            password = [int(c, 16) for c in password_hex]
+            idx = 0
+
+            def decrypt_next_char():
+                nonlocal idx
+                c = (~((((password[idx] << 4) & 0xFF) + password[idx + 1]) ^ PWALG_SIMPLE_MAGIC)) & 0xFF
+                idx += 2
+                return c
+
+            flag = decrypt_next_char()
+            if flag == PWALG_SIMPLE_FLAG:
+                idx += 2  # decrypt_next_char()  # dummy
+                length = decrypt_next_char()
+            else:
+                length = flag
+            offset = decrypt_next_char() * 2
+            idx += offset
+            result = []
+            for i in range(length):
+                result.append(decrypt_next_char())
+            result = ''.join(chr(c) for c in result)
+            if flag == PWALG_SIMPLE_FLAG:
+                if result[:len(key)] != key:
+                    result = ""
+                else:
+                    result = result[len(key):]
+            return result
+
+        imported = []
+        ppk_files = []
+
+        hkey = HKEY()
+        sessions_in_registry = advapi32.RegOpenKeyW(HKEY_CURRENT_USER, 'Software\\Martin Prikryl\\WinSCP 2\\Sessions', byref(hkey)) == ERROR_SUCCESS
+        if sessions_in_registry:
+
+            MAX_KEY_NAME = MAX_PATH
+            key_name = create_unicode_buffer(MAX_KEY_NAME)
+            dw = DWORD()
+            dw_size = DWORD(sizeof(DWORD))
+            hkey_sub = HKEY()
+
+            i = 0
+            while advapi32.RegEnumKeyExW(hkey, i, byref(key_name), byref(DWORD(MAX_KEY_NAME)), 0, 0, 0, 0) == ERROR_SUCCESS:
+                i += 1
+                session_name = key_name.value
+                if session_name == 'Default%20Settings':
+                    continue
+
+                if advapi32.RegOpenKeyW(HKEY_CURRENT_USER, f'Software\\Martin Prikryl\\WinSCP 2\\Sessions\\{session_name}', byref(hkey_sub)) == ERROR_SUCCESS:
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'FSProtocol', None, None, byref(dw), byref(dw_size)) == ERROR_SUCCESS:
+                        if dw.value != 5:
+                            continue
+
+                    con = {'name': urllib.parse.unquote(session_name.split('/', 2)[-1]), 'letter': None, 'auto': False, 'reconnect': False, 'path': '/',
+                        'auth': 'ask_password',
+                        'port': 22,
+                    }
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'HostName', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                        con['host'] = key_name.value
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'PortNumber', None, None, byref(dw), byref(dw_size)) == ERROR_SUCCESS:
+                        con['port'] = dw.value
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'UserName', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                        con['user'] = key_name.value
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'RemoteDirectory', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                        con['path'] = key_name.value
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'PublicKeyFile', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                        key_file = urllib.parse.unquote(key_name.value)
+                        con['auth'] = 'key'
+                        if key_file.endswith('.ppk'):
+                            if not os.path.isfile(key_file[:-4]) and key_file not in ppk_files:
+                                ppk_files.append(key_file)
+                            key_file = key_file[:-4]
+                        con['key_file'] = key_file
+
+                    elif advapi32.RegQueryValueExW(hkey_sub, 'Password', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                        con['auth'] = 'password'
+                        pw = decrypt_winscp_password(key_name.value, con['user'] + con['host'])
+                        con["password"] = self._enc(pw)
+
+                    imported.append(con)
+
+                    advapi32.RegCloseKey(hkey_sub)
+
+            advapi32.RegCloseKey(hkey)
+
+        else:
+
+            default_ini_file = os.path.join(os.environ['LOCALAPPDATA'], 'Programs', 'WinSCP', 'WinSCP.ini')
+            fn = self.get_open_filename(_('Import connections'), default_extension='.ini',
+                    filter_string='WinSCP INI File (WinSCP.ini)\0WinSCP.ini\0\0',
+                    initial_path=default_ini_file if os.path.isfile(default_ini_file) else ''
+                    )
+            if not fn:
+                return
 
             try:
-                imported = []
-                ppk_files = []
                 config = configparser.ConfigParser(strict=False)
                 config.read(fn)
                 for k, row in config.__dict__['_sections'].items():
@@ -1025,26 +1170,203 @@ class App(MainWin):
                         pw = decrypt_winscp_password(row['password'], row['username'] + row['hostname'])
                         con["password"] = self._enc(pw)
                     imported.append(con)
-
-                if ppk_files:
-                    res = self.show_message_box(
-                            _('MSG_PPK_KEY_CONVERSION').format('WinSCP') + '\n'.join(ppk_files),
-                            _('Private Key Files'),
-                            MB_ICONQUESTION | MB_YESNO)
-                    if res == IDYES:
-                        puttygen = os.path.join(BIN_DIR, 'puttygen.exe')
-                        for ppk in ppk_files:
-                            proc = subprocess.Popen(
-                                    f'"{puttygen}" "{ppk}" -O private-openssh -o "{ppk[:-4]}"',
-                                    env = {'PATH': BIN_DIR},
-                                    )
             except Exception as e:
                 print(e)
                 return
 
-        else:
+        if ppk_files:
+            res = self.show_message_box(
+                    _('MSG_PPK_KEY_CONVERSION').format('WinSCP') + '\n'.join(ppk_files),
+                    _('Private Key Files'),
+                    MB_ICONQUESTION | MB_YESNO)
+            if res == IDYES:
+                puttygen = os.path.join(BIN_DIR, 'puttygen.exe')
+                for ppk in ppk_files:
+                    proc = subprocess.Popen(
+                            f'"{puttygen}" "{ppk}" -O private-openssh -o "{ppk[:-4]}"',
+                            env = {'PATH': BIN_DIR},
+                            )
+
+        self._update_connections(imported)
+
+    ########################################
+    #
+    ########################################
+    def import_connections_putty(self, is_kitty=False):
+        sessions_reg_path = 'Software\\9bis.com\\KiTTY\\Sessions' if is_kitty else 'Software\\SimonTatham\\PuTTY\\Sessions'
+        try:
+            hkey = HKEY()
+            if advapi32.RegOpenKeyW(HKEY_CURRENT_USER, sessions_reg_path, byref(hkey)) != ERROR_SUCCESS:
+                return
+
+            imported = []
+            ppk_files = []
+            MAX_KEY_NAME = MAX_PATH
+            key_name = create_unicode_buffer(MAX_KEY_NAME)
+            dw = DWORD()
+            dw_size = DWORD(sizeof(DWORD))
+            hkey_sub = HKEY()
+
+            i = 0
+            while advapi32.RegEnumKeyExW(hkey, i, byref(key_name), byref(DWORD(MAX_KEY_NAME)), 0, 0, 0, 0) == ERROR_SUCCESS:
+                i += 1
+                session_name = key_name.value
+                if session_name == 'Default%20Settings' or session_name == 'WinSCP%20temporary%20session':
+                    continue
+
+                if advapi32.RegOpenKeyW(HKEY_CURRENT_USER, sessions_reg_path + f'\\{session_name}', byref(hkey_sub)) == ERROR_SUCCESS:
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'Protocol', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                        if key_name.value != 'ssh':
+                            continue
+
+                    con = {'name': urllib.parse.unquote(session_name), 'letter': None, 'auto': False, 'reconnect': False, 'path': '/', 'auth': 'ask_password'}
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'HostName', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                        host = key_name.value
+                        if '@' in host:
+                            user, host = host.split('@', 2)
+                            con['user'] = user
+                        con['host'] = host
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'PortNumber', None, None, byref(dw), byref(dw_size)) == ERROR_SUCCESS:
+                        con['port'] = dw.value
+
+                    if 'user' not in con:
+                        if advapi32.RegQueryValueExW(hkey_sub, 'UserName', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                            con['user'] = key_name.value if key_name.value else os.environ['USERNAME']  # TODO: can be empty!
+
+                    if advapi32.RegQueryValueExW(hkey_sub, 'PublicKeyFile', None, None, byref(key_name), byref(DWORD(MAX_KEY_NAME))) == ERROR_SUCCESS:
+                        key_file = key_name.value
+                        if key_file:
+                            con['auth'] = 'key'
+                            if key_file.endswith('.ppk'):
+                                if not os.path.isfile(key_file[:-4]) and key_file not in ppk_files:
+                                    ppk_files.append(key_file)
+                                key_file = key_file[:-4]
+                            con['key_file'] = key_file
+
+                    imported.append(con)
+                    advapi32.RegCloseKey(hkey_sub)
+
+            advapi32.RegCloseKey(hkey)
+
+            if ppk_files:
+                res = self.show_message_box(
+                        _('MSG_PPK_KEY_CONVERSION').format('KiTTY' if is_kitty else 'PuTTY') + '\n'.join(ppk_files),
+                        _('Private Key Files'),
+                        MB_ICONQUESTION | MB_YESNO)
+                if res == IDYES:
+                    puttygen = os.path.join(BIN_DIR, 'puttygen.exe')
+                    for ppk in ppk_files:
+                        proc = subprocess.Popen(
+                                f'"{puttygen}" "{ppk}" -O private-openssh -o "{ppk[:-4]}"',
+                                env = {'PATH': BIN_DIR},
+                                )
+        except Exception as e:
+            print(e)
             return
 
+        self._update_connections(imported)
+
+    ########################################
+    # no passwords
+    ########################################
+    def import_connections_cyberduck(self):
+        try:
+            imported = []
+            ppk_files = []
+            bm_dir = os.environ['APPDATA'] + '\\Cyberduck\\Bookmarks'
+            for fn in os.listdir(bm_dir):
+                fn = os.path.join(bm_dir, fn)
+                with open(fn, 'r') as f:
+                    xml = f.read().replace('\n', '')
+                xml = re.sub(r'<key>[\S ]*?</key>\s*?<dict>.*?</dict>', '', xml)
+
+                data = {}
+                last_key = None
+                for row in re.findall(r"<(key|string)>(.*?)</(key|string)>", xml):
+                    if row[0] == 'key':
+                        last_key = row[1]
+                    elif row[0] == 'string':
+                        data[last_key] = row[1]
+                if data['Protocol'] != 'sftp':
+                    continue
+                con = {'name': data['Nickname'], 'letter': None, 'auto': False, 'reconnect': False,
+                    'path': data['Path'] if 'Path' in data else '/',
+                    'auth': 'ask_password',
+                    'host': data['Hostname'],
+                    'port': data['Port'],
+                    'user': data['Username'],
+                }
+
+                if 'Private Key File' in data:
+                    con['auth'] = 'key'
+                    key_file = data['Private Key File']
+                    if key_file.endswith('.ppk'):
+                        if not os.path.isfile(key_file[:-4]) and key_file not in ppk_files:
+                            ppk_files.append(key_file)
+                        key_file = key_file[:-4]
+                    con['key_file'] = key_file
+
+                imported.append(con)
+
+            if ppk_files:
+                res = self.show_message_box(
+                        _('MSG_PPK_KEY_CONVERSION').format('Cyberduck') + '\n'.join(ppk_files),
+                        _('Private Key Files'),
+                        MB_ICONQUESTION | MB_YESNO)
+                if res == IDYES:
+                    puttygen = os.path.join(BIN_DIR, 'puttygen.exe')
+                    for ppk in ppk_files:
+                        proc = subprocess.Popen(
+                                f'"{puttygen}" "{ppk}" -O private-openssh -o "{ppk[:-4]}"',
+                                env = {'PATH': BIN_DIR},
+                                )
+        except Exception as e:
+            print(e)
+            return
+
+        self._update_connections(imported)
+
+    ########################################
+    # Ignores everything except for HostName and IdentityFile.
+    # No username, so we default to current windows profile name.
+    ########################################
+    def import_connections_openssh(self):
+        try:
+            imported = []
+            with open(os.path.join(os.environ['USERPROFILE'], '.ssh', 'config'), 'r') as f:
+                config = f.read().split('\n')
+            con = None
+            for line in config:
+                parts = line.strip().split(None, 2)
+                if len(parts) < 2 or parts[0].startswith('#'):
+                    continue
+                if parts[0] == 'Host':
+                    if con is not None:
+                        imported.append(con)
+                    con = {'name': parts[1], 'host': parts[1], 'letter': None, 'auto': False, 'reconnect': False,
+                        'path': '/', 'port': 22, 'user': os.environ['USERNAME'], 'auth': 'key',
+                    }
+                elif parts[0] == 'HostName':
+                    con['host'] = parts[1]
+                elif parts[0] == 'IdentityFile':
+                    con['key_file'] = parts[1].replace('~', os.environ['USERPROFILE']).replace('/', '\\')
+
+            if con is not None:
+                imported.append(con)
+
+        except Exception as e:
+            print(e)
+            return
+
+        self._update_connections(imported)
+
+    ########################################
+    #
+    ########################################
+    def _update_connections(self, imported):
         # make names unique
         con_names = [con['name'] for con in self.connection_dict.values()]
         for con in imported:
@@ -1082,6 +1404,7 @@ class App(MainWin):
             elif res == IDYES:
                 for con_id in list(self._current_connections.keys()):
                     self.disconnect(con_id)
+        self._update_explorer_menu(True)
         super().quit()
 
     ########################################

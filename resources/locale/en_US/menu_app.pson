@@ -1,0 +1,64 @@
+{
+    "language": [
+        "LANG_ENGLISH",
+        "SUBLANG_ENGLISH_US"
+    ],
+    "items": [
+        {
+            "caption": "&File",
+            "items": [
+                {
+                    "caption": "&Export...",
+                    "id": IDM_EXPORT
+                },
+                {
+                    "caption": "&Import...",
+                    "id": IDM_IMPORT
+                },
+                {
+                    "caption": "-"
+                },
+                {
+                    "caption": "Import from &FileZilla",
+                    "id": IDM_IMPORT_FILEZILLA
+                },
+                {
+                    "caption": "Import from &WinSCP",
+                    "id": IDM_IMPORT_WINSCP
+                },
+                {
+                    "caption": "Import from &PuTTY",
+                    "id": IDM_IMPORT_PUTTY
+                },
+                {
+                    "caption": "Import from &KiTTY",
+                    "id": IDM_IMPORT_KITTY
+                },
+                {
+                    "caption": "Import from &Cyberduck",
+                    "id": IDM_IMPORT_CYBERDUCK
+                },
+                {
+                    "caption": "Import from &OpenSSH",
+                    "id": IDM_IMPORT_OPENSSH
+                },
+                {
+                    "caption": "-"
+                },
+                {
+                    "caption": "E&xit",
+                    "id": IDM_QUIT
+                }
+            ]
+        },
+        {
+            "caption": "&Help",
+            "items": [
+                {
+                    "caption": "About...\tF1",
+                    "id": IDM_ABOUT
+                },
+            ]
+        }
+    ]
+}

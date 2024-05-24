@@ -110,9 +110,9 @@ class Button(Window):
     ########################################
     #
     ########################################
-    def set_font(self, **kwargs):
+    def set_font(self, *args, **kwargs):
         if self.__is_checkbox_or_radio:
-            self.checkbox_static.set_font(**kwargs)
+            self.checkbox_static.set_font(*args, **kwargs)
         else:
             super().set_font(**kwargs)
 
