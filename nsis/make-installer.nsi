@@ -13,6 +13,8 @@
 
 !include "MUI2.nsh"
 
+!include "FileFunc.nsh"   ; for ${GetSize} for EstimatedSize registry entry
+
 !define UNINST_LIST uninstall_list.nsh
 
 ;--------------------------------
@@ -90,10 +92,15 @@ Section "$%APP_NAME% (required)"
 
   ; Write the uninstall keys for Windows
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "DisplayName" "$%APP_NAME%"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "DisplayIcon" "$INSTDIR\$%APP_NAME%.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "UninstallString" '"$INSTDIR\uninstall.exe"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "NoRepair" 1
   WriteUninstaller "$INSTDIR\uninstall.exe"
+
+  ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
+  IntFmt $0 "0x%08X" $0
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$%APP_NAME%" "EstimatedSize" "$0"
 
   ; WriteRegStr HKCU SOFTWARE\$%APP_NAME% "connections" "[]"
   ; WriteRegDWORD HKCU SOFTWARE\$%APP_NAME% "dark" 1

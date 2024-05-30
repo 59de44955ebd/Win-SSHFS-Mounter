@@ -119,8 +119,8 @@ class App(MainWin):
             con_id = self._new_con_id()
             self.connection_dict[con_id] = row
 
-        self.create_popup_menu()
         self.create_ui()
+        self.create_popup_menu()
         self.create_dialogs()
         if not IS_CONSOLE:
             self.create_console()
@@ -151,9 +151,16 @@ class App(MainWin):
                     y=84,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
+
+            self.button_delete_all.set_window_pos(
+                    x=button_x,
+                    y=116,
+                    flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
+                    )
+
             self.button_connect.set_window_pos(
                     x=button_x,
-                    y=84 + 2 * 32,
+                    y=116 + 2 * 32,
                     flags=SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER
                     )
             self.button_dark.set_window_pos(
@@ -250,6 +257,10 @@ class App(MainWin):
             elif lparam == self.button_delete.hwnd:
                 if command == BN_CLICKED:
                     self.delete_connection()
+
+            elif lparam == self.button_delete_all.hwnd:
+                if command == BN_CLICKED:
+                    self.delete_all_connections()
 
             elif lparam == self.button_connect.hwnd:
                 if command == BN_CLICKED:
@@ -433,6 +444,12 @@ class App(MainWin):
             window_title=_("Delete Connection"))
         self.button_delete.set_font()
         self.button_delete.enable_window(0)
+        self.button_delete_all = Button(
+            self,
+            style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            width=BUTTON_WIDTH, height=BUTTON_HEIGHT,
+            window_title=_("Delete All"))
+        self.button_delete_all.set_font()
         self.button_connect = Button(
             self,
             style=WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
@@ -490,6 +507,7 @@ class App(MainWin):
             "id": IDM_QUIT
         })
         self._hmenu_popup = self.make_popup_menu(menu_data)
+        self.button_delete_all.enable_window(int(len(self.connection_dict.keys()) > 0))
 
     ########################################
     #
@@ -919,7 +937,7 @@ class App(MainWin):
         self.dialog_show_sync(self.dialog_connection, con_id)
 
     ########################################
-    #
+    # TODO: check if this connection is currently active, ask if it should e disconnected
     ########################################
     def delete_connection(self):
         idx = user32.SendMessageW(self.listbox.hwnd, LB_GETCURSEL, 0, 0)
@@ -930,6 +948,26 @@ class App(MainWin):
         self.button_connect.enable_window(0)
         del self.connection_dict[con_id]
         self.save_connections(list(self.connection_dict.values()))
+        self.create_popup_menu()
+
+    ########################################
+    # TODO: check if thee are active connections, ask if they should be disconnected
+    ########################################
+    def delete_all_connections(self):
+        if not self.connection_dict:
+            return
+        res = self.show_message_box(
+                _('Do you really want to delete all connections?'),
+                _('Delete all connections'),
+                MB_ICONQUESTION | MB_YESNO)
+        if res != IDYES:
+            return
+        user32.SendMessageW(self.listbox.hwnd, LB_RESETCONTENT, 0, 0)
+        self.button_edit.enable_window(0)
+        self.button_delete.enable_window(0)
+        self.button_connect.enable_window(0)
+        self.connection_dict = {}
+        self.save_connections([])
         self.create_popup_menu()
 
     ########################################
